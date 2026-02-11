@@ -1,12 +1,27 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Product } from '../../../types';
 import { embedAllProducts, searchByQuery } from '../../../actions/db.actions';
+import { useDebounce } from '../../../hooks/useDebounce';
 import Chat from './Chat';
 
 const Home = () => {
   const [query, setQuery] = useState('');
   const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
+  const debouncedQuery = useDebounce(query, 500);
+
+  useEffect(() => {
+    const performSearch = async () => {
+      if (debouncedQuery.trim()) {
+        const products = await searchByQuery(debouncedQuery);
+        setRecommendedProducts(products);
+      } else {
+        setRecommendedProducts([]);
+      }
+    };
+
+    performSearch();
+  }, [debouncedQuery]);
 
   return (
     <div className='max-w-150 flex flex-col gap-4'>
@@ -17,16 +32,13 @@ const Home = () => {
         Embed All Products
       </button>
 
-      <input className='border p-2 rounded' type='text' value={query} onChange={(e) => setQuery(e.target.value)} />
-
-      <button
-        className='border-2 border-white hover:bg-yellow-500 text-white hover:text-black font-bold py-2 px-4 rounded'
-        onClick={async () => {
-          const products = await searchByQuery(query);
-          setRecommendedProducts(products);
-        }}>
-        Search by query
-      </button>
+      <input
+        className='border p-2 rounded'
+        type='text'
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder='Type to search...'
+      />
 
       {recommendedProducts && recommendedProducts.length > 0 && (
         <div className='border-2 border-white p-2 rounded'>
@@ -40,7 +52,7 @@ const Home = () => {
         </div>
       )}
 
-      <div className='w-full bg-white h-10' />
+      <div className='w-full h-0.5 bg-white ' />
 
       <Chat />
     </div>
