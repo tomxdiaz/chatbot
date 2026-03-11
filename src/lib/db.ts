@@ -76,7 +76,7 @@ export async function searchProducts(query: string): Promise<Product[]> {
     ])
     .toArray();
 
-  console.log('Raw search results from MongoDB:', products);
+  // console.log('Raw search results from MongoDB:', products);
 
   return products.map((product) => ({
     id: product._id.toString(),

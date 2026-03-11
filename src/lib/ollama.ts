@@ -105,6 +105,8 @@ ${history.map((h) => `${h.sender}: ${h.message}${h.products ? ` (Products: ${h.p
 
     const data = await res.json();
 
+    console.log('Ollama response:', JSON.parse(data.response));
+
     return JSON.parse(data.response);
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : String(e);
@@ -128,7 +130,7 @@ export async function generateChatResponse({
   message: string;
   products?: Product[];
 }> {
-  console.log('Generating chat response with products:', products);
+  // console.log('Generating chat response with products:', products);
 
   const isFirstAssistantMessage = !history.some((h) => h.sender === 'bot');
 

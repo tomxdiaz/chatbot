@@ -14,13 +14,13 @@ const Chat = () => {
 
     setCurrentMessage({ text: '', products: [] });
 
-    console.log(
-      'Historial de mensajes:',
-      messageHistory.map(
-        (h) =>
-          `${h.sender}: ${h.message}${h.products && h.products.length > 0 ? ` (Products: ${h.products.map((p) => 'Title: ' + p.title + ' - Description: ' + p.description).join(' / ')})` : ''}`,
-      ),
-    );
+    // console.log(
+    //   'Historial de mensajes:',
+    //   messageHistory.map(
+    //     (h) =>
+    //       `${h.sender}: ${h.message}${h.products && h.products.length > 0 ? ` (Products: ${h.products.map((p) => 'Title: ' + p.title + ' - Description: ' + p.description).join(' / ')})` : ''}`,
+    //   ),
+    // );
 
     const { message, products } = await getChatResponse(currentMessage.text, messageHistory);
 

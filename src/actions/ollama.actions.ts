@@ -23,18 +23,18 @@ export async function getChatResponse(
     let products: Product[] = [];
 
     if (intent === 'PRODUCT_SEARCH') {
-      console.log('SECOND STEP START: Retrieved products:', products);
+      // console.log('SECOND STEP START: Retrieved products:', products);
 
       const queryString = `Query: ${query}\nFilters: ${filters.join(', ')}`;
 
       products = await searchByQuery(queryString);
 
-      console.log('SECOND STEP END: Retrieved products:', products);
+      // console.log('SECOND STEP END: Retrieved products:', products);
     } else {
-      console.log('Intent is OFF_TOPIC, skipping STEP TWO product search');
+      // console.log('Intent is OFF_TOPIC, skipping STEP TWO product search');
     }
 
-    console.log('THIRD STEP START: Generating chat response with intent, query, filters, and products');
+    // console.log('THIRD STEP START: Generating chat response with intent, query, filters, and products');
 
     const response = await generateChatResponse({
       intent,

@@ -1,161 +1,192 @@
 # Product Recommendation Chatbot
 
-A smart product recommendation system powered by local AI, designed to help users discover products from the Shift Green Hub database through natural conversation and semantic search.
+A conversational product discovery system powered by local AI. Users chat naturally to find products; the system classifies intent, runs semantic vector search against MongoDB, and generates contextual recommendations — all without sending any data to external services.
 
-## Overview
+## What It Does
 
-This chatbot provides an intelligent interface to explore and discover products using advanced AI capabilities running entirely on your local machine. It combines conversational AI with semantic search to understand user needs and recommend relevant products.
+The chatbot connects a conversational interface to a product catalog stored in MongoDB Atlas. When a user asks for something (e.g., "I need eco-friendly kitchen items"), the system:
 
-## Features
+1. Classifies the message as a product search or off-topic
+2. Extracts a clean semantic query from the conversation
+3. Converts the query to a vector embedding and searches the database by similarity
+4. Returns a natural language response with matched products
 
-- **🤖 Conversational AI**: Natural language chatbot that understands user intent and preferences
-- **🔍 Semantic Search**: Vector-based search for finding products based on meaning, not just keywords
-- **🌱 Shift Green Hub Database**: Access to curated sustainable product catalog
-- **🏠 100% Local**: All AI processing runs on your machine using Ollama
-- **⚡ Fast & Private**: No data leaves your computer, instant responses
+Off-topic messages are politely redirected. The full conversation history is passed to every request so the AI can handle follow-ups and filter out previously rejected suggestions.
 
-## Technology Stack
+## Tech Stack
 
-- **Framework**: Next.js with TypeScript
-- **AI Engine**: Ollama (local LLM runtime)
-- **Generation Model**: `gemma3` - For understanding queries and generating responses
-- **Embedding Model**: `nomic-embed-text` - For semantic search and product matching
-- **Styling**: Tailwind CSS
-- **Package Manager**: pnpm
+| Layer | Technology |
+|---|---|
+| Framework | Next.js (App Router, TypeScript) |
+| AI Runtime | [Ollama](https://ollama.com) — runs locally on port 11434 |
+| Generation model | `gemma3` |
+| Embedding model | `nomic-embed-text` |
+| Database | MongoDB Atlas (vector search) |
+| Styling | Tailwind CSS v4 |
+| Package manager | pnpm |
 
-## Prerequisites
+## Architecture
 
-Before running this project, you need to have **Ollama** installed and running on your local machine.
-
-### Installing Ollama
-
-1. Download and install Ollama from [https://ollama.com](https://ollama.com)
-2. Verify installation:
-   ```bash
-   ollama --version
-   ```
-
-### Pulling Required Models
-
-Once Ollama is installed, pull both required models:
-
-```bash
-# Pull the generation model (for chatbot responses)
-ollama pull gemma3
-
-# Pull the embedding model (for semantic search)
-ollama pull nomic-embed-text
+```
+Browser
+  └── Chat component (React)
+        └── getChatResponse() [Server Action]
+              ├── generateChatQuery()     → Ollama/gemma3
+              │     returns: { intent, query, filters }
+              ├── searchByQuery()         → MongoDB $vectorSearch
+              │     createEmbedding()    → Ollama/nomic-embed-text
+              │     returns: Product[]
+              └── generateChatResponse() → Ollama/gemma3
+                    returns: { message, products }
 ```
 
-### Verify Ollama is Running
-
-Ollama should be running on the default port **11434**. You can verify by checking:
-
-```bash
-curl http://localhost:11434/api/tags
-```
-
-If Ollama is not running, start it:
-
-```bash
-ollama serve
-```
-
-## Installation
-
-1. Clone the repository:
-
-   ```bash
-   git clone <repository-url>
-   cd chatbot
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   pnpm install
-   ```
-
-3. Run the development server:
-
-   ```bash
-   pnpm dev
-   ```
-
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
-
-## Usage
-
-### Chatbot Interface
-
-The main interface provides an interactive chat where you can:
-
-- Ask for product recommendations by describing what you need
-- Specify preferences and filters (colors, price range, categories, etc.)
-- Get personalized suggestions based on conversation context
-- Explore products through natural conversation
-
-**Example queries:**
-
-- "I'm looking for sustainable kitchen products"
-- "Show me eco-friendly water bottles"
-- "I need something for outdoor activities"
-
-### Simple Search
-
-The application also includes a simple search feature for direct product queries.
-
-## How It Works
-
-1. **User Input**: User sends a message through the chat interface
-2. **Intent Classification**: Gemma3 analyzes the message to understand user intent
-3. **Query Extraction**: The system extracts a semantic query optimized for vector search
-4. **Embedding Generation**: Nomic-embed-text creates vector embeddings of the query
-5. **Semantic Search**: Products are matched based on vector similarity
-6. **Response Generation**: Gemma3 generates a natural, contextual response with product recommendations
-
-## Project Structure
+**Key files:**
 
 ```
 src/
-├── actions/          # Server actions for DB, Ollama, and OpenAI
-├── app/              # Next.js app directory
-├── components/       # React components
-├── hooks/            # Custom React hooks
-├── lib/              # Core utilities (DB, Ollama, OpenAI clients)
-├── types/            # TypeScript type definitions
-└── utils/            # Helper functions
+├── actions/
+│   ├── ollama.actions.ts   # getChatResponse — orchestrates the whole pipeline
+│   └── db.actions.ts       # searchByQuery, embedAllProducts
+├── lib/
+│   ├── ollama.ts           # createEmbedding, generateChatQuery, generateChatResponse
+│   └── db.ts               # MongoDB client, searchProducts (vector search)
+├── components/ui/Home/
+│   ├── index.tsx           # Page: simple search + embed button + chat
+│   └── Chat.tsx            # Chat UI with message history
+├── types/index.ts          # Product, MessageSender, QueryIntent types
+└── utils/functions.ts      # productToEmbeddingText and other helpers
 ```
 
-## Configuration
+## Database
 
-The application expects Ollama to be running on `http://localhost:11434` (default port). If you need to change this, update the fetch URLs in:
+**MongoDB Atlas** — database `chatbot`, collection `products`.
 
-- `src/lib/ollama.ts`
+Product documents:
+```ts
+{
+  _id: ObjectId,
+  title: string,
+  brand: string,
+  productType: string,
+  collections: string[],
+  description: string,
+  category: string,
+  name: string,
+  embedding: number[]   // generated by nomic-embed-text
+}
+```
+
+Vector search uses a MongoDB Atlas Search index named `vector` on the `embedding` field (numCandidates: 50, limit: 5). You must create this index in the Atlas UI before semantic search will work.
+
+## Prerequisites
+
+- **Node.js** >= 18
+- **pnpm** (`npm install -g pnpm`)
+- **Ollama** installed and running ([ollama.com](https://ollama.com))
+- **MongoDB Atlas** cluster with the `chatbot.products` collection populated
+
+## Local Setup
+
+### 1. Install Ollama and pull models
+
+```bash
+# Install from https://ollama.com, then:
+ollama pull gemma3
+ollama pull nomic-embed-text
+
+# Verify it's running on port 11434
+curl http://localhost:11434/api/tags
+# If not running: ollama serve
+```
+
+### 2. Clone and install dependencies
+
+```bash
+git clone <repository-url>
+cd products-chatbot-demo
+pnpm install
+```
+
+### 3. Configure environment variables
+
+Create `.env.local` at the project root:
+
+```env
+MONGODB_USER=your_atlas_username
+MONGODB_PASSWORD=your_atlas_password
+```
+
+These are used to build the connection string:
+```
+mongodb+srv://<user>:<password>@cluster0.kg256ci.mongodb.net/?appName=Cluster0
+```
+
+### 4. Set up the MongoDB vector search index
+
+In MongoDB Atlas, go to **Search & Vector Search** and create an index on the `chatbot.products` collection:
+
+```json
+{
+  "fields": [
+    {
+      "type": "vector",
+      "path": "embedding",
+      "numDimensions": 768,
+      "similarity": "cosine"
+    }
+  ]
+}
+```
+
+Name the index `vector`.
+
+### 5. Run the dev server
+
+```bash
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+### 6. Generate product embeddings (one-time)
+
+If the products in your database don't have embeddings yet, click **"Embed All Products"** on the home page. This calls `embedAllProducts()`, which iterates every product, generates a vector with `nomic-embed-text`, and writes it back to MongoDB. Only needs to run once (or when new products are added without embeddings).
+
+## How the AI Pipeline Works
+
+### Intent classification & query extraction (`generateChatQuery`)
+
+The first Ollama call analyzes the user's message and conversation history. It returns structured JSON:
+
+```json
+{
+  "intent": "PRODUCT_SEARCH",
+  "query": "sustainable reusable water bottle outdoor",
+  "filters": { "category": "drinkware" }
+}
+```
+
+`OFF_TOPIC` intent skips the database search entirely.
+
+### Semantic search (`searchByQuery`)
+
+The extracted query is embedded with `nomic-embed-text` and used in a MongoDB `$vectorSearch` aggregation that returns the 5 most similar products by cosine similarity.
+
+### Response generation (`generateChatResponse`)
+
+A second Ollama call receives the conversation history, matched products, and intent. The model writes a natural response and selects which products to recommend. The code then filters the returned product list to only include products the model explicitly chose.
 
 ## Troubleshooting
 
-### Ollama Connection Issues
+| Problem | Fix |
+|---|---|
+| `Error creando embedding con Ollama` | Ollama isn't running — run `ollama serve` |
+| Models missing | `ollama pull gemma3 && ollama pull nomic-embed-text` |
+| No search results | Check that embeddings exist and the `vector` index is active in Atlas |
+| MongoDB connection error | Verify `MONGODB_USER` and `MONGODB_PASSWORD` in `.env.local` |
 
-If you see "Error creando embedding con Ollama" or similar errors:
+## Notes
 
-1. Verify Ollama is running: `curl http://localhost:11434/api/tags`
-2. Check that both models are installed: `ollama list`
-3. Ensure Ollama is listening on port 11434
-
-### Models Not Found
-
-If Ollama reports that models are missing:
-
-```bash
-ollama pull gemma3
-ollama pull nomic-embed-text
-```
-
-## License
-
-[Add your license here]
-
-## Contributing
-
-[Add contribution guidelines here]
+- The UI and bot responses are in Spanish.
+- Ollama runs the full LLM locally — first responses may be slow depending on hardware.
+- The `openai.actions.ts` file is present but unused (legacy artifact).
